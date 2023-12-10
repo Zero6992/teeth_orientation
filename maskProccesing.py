@@ -171,7 +171,8 @@ for teeth in teethList:
 y_coordinates = np.array([teeth_obj.calculate_center_coordinate()[1] for teeth_obj in teethList if teeth_obj.calculate_center_coordinate() is not None]).reshape(-1, 1)
 
 # Fit KMeans with two clusters on y-coordinates only
-kmeans = KMeans(n_clusters=2, n_init=10, random_state=42)
+# kmeans = KMeans(n_clusters=2, n_init=10, random_state=42)
+kmeans = KMeans(n_clusters=2, init='k-means++', n_init=20, max_iter=600, tol=1e-4, random_state=42)
 y_kmeans = kmeans.fit_predict(y_coordinates)
 
 # Assign upperOrLowerJaw attribute based on clustering result
@@ -195,3 +196,18 @@ plt.legend()
 plt.title('Original Image with Teeth Center Points and K-Means Clustering on Height')
 plt.show()
 
+# if area of lower jaw is more than upper then picture is upsidedown
+upperJawArea = 0
+lowerJawArea = 0
+
+for teeth in teethList:
+    if teeth.upperOrLowerJaw == 1:
+        upperJawArea += teeth.area
+    
+    else:
+        lowerJawArea += teeth.area
+
+if lowerJawArea > upperJawArea:
+    print('picture is upside down')
+else:
+    print('picture is in correct orientation')

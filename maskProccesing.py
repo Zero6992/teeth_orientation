@@ -2,12 +2,14 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
+from sklearn.cluster import KMeans
 
 class TeethObject:
     def __init__(self, mask):
         self.mask = mask
         self.area = self.calculate_area()
         self.center_coordinate = self.calculate_center_coordinate()
+        self.upperOrLowerJaw = None
 
     def calculate_area(self):
         return cv2.countNonZero(self.mask)
@@ -148,6 +150,48 @@ for teeth in teethList:
     center_coord = teeth.calculate_center_coordinate()
     if center_coord is not None:
         pts = np.append(pts, [center_coord], axis=0)
-plt.scatter(pts[:, 0], pts[:, 1], color='red', marker='o', s=10)  # Adjust 's' for dot size
-plt.title('Original Image with Teeth Center Points')
+
+
+
+# plt.scatter(pts[:, 0], pts[:, 1], color='red', marker='o', s=10)  # Adjust 's' for dot size
+# plt.title('Original Image with Teeth Center Points')
+# plt.show()
+
+# # Fit KMeans with two clusters
+# kmeans = KMeans(n_clusters=2, random_state=42)
+# y_kmeans = kmeans.fit_predict(pts)
+# # Plot KMeans clusters
+# plt.scatter(pts[:, 0], pts[:, 1], c=y_kmeans, cmap='viridis', marker='o', s=50)
+# plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], c='red', marker='X', s=200, label='Cluster Centers')
+# plt.title('K-Means Clustering')
+# plt.legend()
+# plt.show()
+
+# Extract y-coordinates (height) from center coordinates
+y_coordinates = np.array([teeth_obj.calculate_center_coordinate()[1] for teeth_obj in teethList if teeth_obj.calculate_center_coordinate() is not None]).reshape(-1, 1)
+
+# Fit KMeans with two clusters on y-coordinates only
+kmeans = KMeans(n_clusters=2, n_init=10, random_state=42)
+y_kmeans = kmeans.fit_predict(y_coordinates)
+
+# Assign upperOrLowerJaw attribute based on clustering result
+for idx, label in enumerate(y_kmeans):
+    teethList[idx].upperOrLowerJaw = label
+
+# Plot original image with red dots at center points
+plt.imshow(image)
+
+# Plot teeth based on upperOrLowerJaw attribute
+for label in range(2):
+    filtered_teeth = [teeth_obj for teeth_obj in teethList if teeth_obj.upperOrLowerJaw == label]
+    x_coords = [teeth_obj.calculate_center_coordinate()[0] for teeth_obj in filtered_teeth]
+    y_coords = [teeth_obj.calculate_center_coordinate()[1] for teeth_obj in filtered_teeth]
+    color = 'red' if label == 0 else 'blue'
+    plt.scatter(x_coords, y_coords, color=color, marker='o', s=50, label=f'Jaw {label + 1}')
+
+# Add legend
+plt.legend()
+
+plt.title('Original Image with Teeth Center Points and K-Means Clustering on Height')
 plt.show()
+

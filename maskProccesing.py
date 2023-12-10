@@ -7,11 +7,41 @@ class TeethObject:
     def __init__(self, mask):
         self.mask = mask
         self.area = self.calculate_area()
-
-        print(self.area)
+        self.center_coordinate = self.calculate_center_coordinate()
 
     def calculate_area(self):
         return cv2.countNonZero(self.mask)
+
+    def calculate_center_coordinate(self):
+        # Find contours of the mask
+        contours, _ = cv2.findContours(self.mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if contours:
+            # Find the center of the largest contour (assuming it's one connected component)
+            largest_contour = max(contours, key=cv2.contourArea)
+            M = cv2.moments(largest_contour)
+
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                return (cx, cy)
+            else:
+                return None
+        else:
+            return None
+        
+    def plot_with_center(self):
+        # Convert the mask to BGR format for visualization
+        mask_bgr = cv2.cvtColor(self.mask, cv2.COLOR_GRAY2BGR)
+
+        # Plot the center point on the mask
+        if self.center_coordinate:
+            cv2.circle(mask_bgr, self.center_coordinate, 5, (0, 0, 255), -1)  # Red dot
+
+        # Display the image with the center point
+        plt.imshow(mask_bgr)
+        plt.title('Teeth Object with Center Point')
+        plt.show()
 
 
 def get_color_mask(img, target_color):
@@ -94,23 +124,30 @@ image_path = 'result/1/mask/mask_IMG_2898.png'
 image = Image.open(image_path)
 
 teethList = []
-
 colors = get_unique_colors(image)
-# won't include black as black is backround
-print(len(colors)-1)
-# print(colors)
 
 for color in colors:
     black_color = np.array([0, 0, 0])
 
     # Check if the color is not black
     if not np.array_equal(color, black_color):
-        # theres some bug with mask so use new_img for now
         _, new_img = get_color_mask(image, color)
 
-        # convert new_img to binary image
+        # Convert new_img to binary image
         binary_image = binarizeImage(new_img)
-        # plt.imshow(binary_image, cmap='gray')
-        # plt.show()
 
-        teethList.append(TeethObject(binary_image))
+        teeth_object = TeethObject(binary_image)
+        teethList.append(teeth_object)
+
+# plot original image with center points overlaid
+plt.imshow(image)
+pts = np.empty((0, 2), dtype=int)
+
+# Append coordinates to the array
+for teeth in teethList:
+    center_coord = teeth.calculate_center_coordinate()
+    if center_coord is not None:
+        pts = np.append(pts, [center_coord], axis=0)
+plt.scatter(pts[:, 0], pts[:, 1], color='red', marker='o', s=10)  # Adjust 's' for dot size
+plt.title('Original Image with Teeth Center Points')
+plt.show()

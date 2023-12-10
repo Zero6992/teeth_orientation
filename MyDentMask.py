@@ -990,7 +990,7 @@ if __name__ == "__main__":
             black_img = Image.fromarray(npblack_img)
             
             pilSave(img,f"./result/{fileName}","seg","seg",imageName)  
-            pilSave(black_img,f"./result/{fileName}","seg","mask",imageName)
+            pilSave(black_img,f"./result/{fileName}","mask","mask",imageName)
 
             # exit()
 

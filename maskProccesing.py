@@ -122,7 +122,7 @@ def get_bounding_box(mask, color):
     return bbox
 
 
-image_path = 'result/1/mask/mask_IMG_2898.png'
+image_path = 'orientation/1/mask/mask_IMG_2899.png'
 image = Image.open(image_path)
 
 teethList = []

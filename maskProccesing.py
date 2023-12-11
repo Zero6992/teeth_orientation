@@ -196,6 +196,7 @@ plt.legend()
 plt.title('Original Image with Teeth Center Points and K-Means Clustering on Height')
 plt.show()
 
+# naive approach
 # if area of lower jaw is more than upper then picture is upsidedown
 upperJawArea = 0
 lowerJawArea = 0

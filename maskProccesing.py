@@ -1,8 +1,10 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import colorsys
 from PIL import Image
 from sklearn.cluster import KMeans
+from sklearn.cluster import AgglomerativeClustering
 
 class TeethObject:
     def __init__(self, mask):
@@ -152,21 +154,6 @@ for teeth in teethList:
         pts = np.append(pts, [center_coord], axis=0)
 
 
-
-# plt.scatter(pts[:, 0], pts[:, 1], color='red', marker='o', s=10)  # Adjust 's' for dot size
-# plt.title('Original Image with Teeth Center Points')
-# plt.show()
-
-# # Fit KMeans with two clusters
-# kmeans = KMeans(n_clusters=2, random_state=42)
-# y_kmeans = kmeans.fit_predict(pts)
-# # Plot KMeans clusters
-# plt.scatter(pts[:, 0], pts[:, 1], c=y_kmeans, cmap='viridis', marker='o', s=50)
-# plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], c='red', marker='X', s=200, label='Cluster Centers')
-# plt.title('K-Means Clustering')
-# plt.legend()
-# plt.show()
-
 # Extract y-coordinates (height) from center coordinates
 y_coordinates = np.array([teeth_obj.calculate_center_coordinate()[1] for teeth_obj in teethList if teeth_obj.calculate_center_coordinate() is not None]).reshape(-1, 1)
 
@@ -196,19 +183,92 @@ plt.legend()
 plt.title('Original Image with Teeth Center Points and K-Means Clustering on Height')
 plt.show()
 
+
+
+
+# # Fit Agglomerative Clustering with two clusters
+# agglomerative = AgglomerativeClustering(n_clusters=2, linkage='ward')
+# y_agglomerative = agglomerative.fit_predict(y_coordinates)
+
+# # Assign upperOrLowerJaw attribute based on clustering result
+# for idx, label in enumerate(y_agglomerative):
+#     teethList[idx].upperOrLowerJaw = label
+
+# # Plot original image with red dots at center points
+# plt.imshow(image)
+
+# # Plot teeth based on upperOrLowerJaw attribute
+# for label in range(2):
+#     filtered_teeth = [teeth_obj for teeth_obj in teethList if teeth_obj.upperOrLowerJaw == label]
+#     x_coords = [teeth_obj.calculate_center_coordinate()[0] for teeth_obj in filtered_teeth]
+#     y_coords = [teeth_obj.calculate_center_coordinate()[1] for teeth_obj in filtered_teeth]
+#     color = 'red' if label == 0 else 'blue'
+#     plt.scatter(x_coords, y_coords, color=color, marker='o', s=50, label=f'Jaw {label + 1}')
+
+# # Add legend
+# plt.legend()
+
+# plt.title('Original Image with Teeth Center Points and Agglomerative Clustering on Height')
+# plt.show()
+
+
+# # Extract x and y coordinates from center coordinates
+# coordinates = np.array([teeth_obj.calculate_center_coordinate() for teeth_obj in teethList if teeth_obj.calculate_center_coordinate() is not None])
+
+# # Fit KMeans with six clusters on both x and y coordinates
+# kmeans = KMeans(n_clusters=6, init='k-means++', n_init=20, max_iter=600, tol=1e-4, random_state=42)
+# cluster_labels = kmeans.fit_predict(coordinates)
+
+# # Assign distinct hues to each cluster label
+# num_clusters = len(set(cluster_labels))
+# hue_values = np.linspace(0, 1, num_clusters, endpoint=False)
+
+# # Assign upperOrLowerJaw attribute based on clustering result
+# for idx, label in enumerate(cluster_labels):
+#     teethList[idx].cluster_label = label
+
+# # Plot original image with red dots at center points
+# plt.imshow(image)
+
+# # Plot teeth based on cluster_label attribute
+# for label in set(cluster_labels):
+#     filtered_teeth = [teeth_obj for teeth_obj in teethList if teeth_obj.cluster_label == label]
+#     x_coords = [teeth_obj.calculate_center_coordinate()[0] for teeth_obj in filtered_teeth]
+#     y_coords = [teeth_obj.calculate_center_coordinate()[1] for teeth_obj in filtered_teeth]
+    
+#     # Convert HSV to RGB for matplotlib
+#     rgb_color = colorsys.hsv_to_rgb(hue_values[label], 1, 1)
+    
+#     plt.scatter(x_coords, y_coords, color=rgb_color, marker='o', s=50, label=f'Cluster {label + 1}')
+
+# # Add legend
+# plt.legend()
+
+# plt.title('Original Image with Teeth Center Points and K-Means Clustering on X and Y Coordinates (Distinct Hues)')
+# plt.show()
+
 # naive approach
-# if area of lower jaw is more than upper then picture is upsidedown
+# only for face, left, right
+# if average area of lower jaw is more than upper then picture is upsidedown
 upperJawArea = 0
+upperJawTeethCount = 0
 lowerJawArea = 0
+lowerJawTeethCount = 0
 
 for teeth in teethList:
     if teeth.upperOrLowerJaw == 1:
         upperJawArea += teeth.area
+        upperJawTeethCount += 1
     
     else:
         lowerJawArea += teeth.area
+        lowerJawTeethCount += 1
 
-if lowerJawArea > upperJawArea:
-    print('picture is upside down')
-else:
+avgUpperJawArea = upperJawArea / upperJawTeethCount
+avgLowerJawArea = lowerJawArea / lowerJawTeethCount
+
+if avgUpperJawArea > avgLowerJawArea:
     print('picture is in correct orientation')
+
+else:
+    print('picture is upside down')

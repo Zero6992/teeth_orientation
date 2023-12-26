@@ -721,7 +721,7 @@ def makeResultDirProcess(fileName):
     os.makedirs(file,exist_ok=True)
     file = os.path.join(sampleDir,  fileName)
     os.makedirs(file,exist_ok=True)
-    createFile = ['det','seg','regression','sample','color','pre_processing','changeColor','mask','newNameSample']
+    createFile = ['det','seg','regression','sample','color','pre_processing','changeColor','mask','newNameSample','boundingBox','node']
     for name in createFile:
         tmp = os.path.join(redir, fileName, name)
         os.makedirs(tmp,exist_ok=True)
@@ -895,6 +895,9 @@ if __name__ == "__main__":
 
             image = tensor2image(images[0].cpu())
             img = image.copy()
+
+            # pilSave(img,f"./result/{fileName}","cut","cut",imageName)
+
             # print("a:size",img.size)
             # print("a:type",type(img.size))
             black_img = Image.new('RGB', img.size, (0, 0, 0))
@@ -903,6 +906,7 @@ if __name__ == "__main__":
             boxes = output["boxes"]
             masks = output["masks"]
 
+            print( "boxes = " , boxes )##################################
 
             #print( "img type = " ,type(img) )
             #print( "draw type = ",type(draw) )
@@ -916,11 +920,57 @@ if __name__ == "__main__":
 
             teethLocationSet = []
             imageTeethNodeSet = []
+            '''
+            minX = 100000
+            minY = 100000
+            maxX = 0
+            maxY = 0
 
+            for box, score in zip(boxes, scores):
+                if score.item() > bb_thre:
+                    #print('box score',score.item())
+                    #teethCnt += 1
+                    box = [b.item() for b in box]
+                    x1, y1, x2 ,y2 = box
+                    x1 = max(int(x1), 0)
+                    y1 = max(int(y1), 0)
+                    x2 = min(int(x2), imageWidth)
+                    y2 = min(int(y2), imageHeight)
+                    minX = min(x1, minX)
+                    minY = min(y1, minY)
+                    maxX = max(x2, maxX)
+                    maxY = max(y2, maxY)
+
+
+            Cutimage = Image.open(f"./result/{fileName}/cut/cut_{imageName[:-3]}png")
+            Cutimage = exif_transpose(Cutimage)
+
+            minX = max(0,minX-100)
+            minY =  max(0,minY-100)
+            maxX = min(Cutimage.width, maxX+100)
+            maxY = min(Cutimage.height, maxY+100)
+
+            Cutimage = Cutimage.crop((minX,minY,maxX,maxY))
+
+            pilSave(Cutimage,f"./result/{fileName}","cut","cut",imageName)
+            '''
             
+            writeFile = open(f"./result/{fileName}/boundingBox/box_{imageName[:-3]}csv",mode="w",newline="")
+            csvWriter = csv.writer(writeFile)
+
+            for box in boxes:
+                x1, y1, x2 ,y2 = box
+                x1 = max(int(x1), 0)
+                y1 = max(int(y1), 0)
+                x2 = min(int(x2), imageWidth)
+                y2 = min(int(y2), imageHeight)
+                csvWriter.writerow([x1,y1,x2,y2])
+
+            writeFile.close()
+                    
             npimg = np.array(image.copy(), dtype=np.uint8)
             npblack_img = np.array(black_img, dtype=np.uint8)
-            for box,mask, score in zip(boxes,masks, scores):
+            for box, mask, score in zip(boxes, masks, scores):
                 if score.item() > bb_thre:
                     #print('box score',score.item())
                     teethCnt += 1 
@@ -955,9 +1005,18 @@ if __name__ == "__main__":
                     detLineScale = 0.005 #det line width scale
                     draw.line([(x1,y1),(x2,y1),(x2,y2),(x1,y2),(x1,y1)], fill=color, width=int(imageWidth*detLineScale))
                     # draw.text((x1,y1), f"{score.item():.4f}", font=fnt) # draw confidence
-        
+
             xArray = np.array(xList)
             yArray = np.array(yList)
+
+            writeFile = open(f"./result/{fileName}/node/node_{imageName[:-3]}csv",mode="w",newline="")
+            csvWriter = csv.writer(writeFile)
+
+            csvWriter.writerow(xList)
+            csvWriter.writerow(yList)
+
+            writeFile.close()
+
             plt.xlim( 0,imageWidth )
             plt.ylim( imageHeight,0 )
             polyLine = np.polyfit(xArray,yArray,2)
@@ -1106,232 +1165,232 @@ if __name__ == "__main__":
                 imageInfoSet[i].view = 'Up'
         
         writeFile.close()
+        '''
         imageFileInfo.photoImageSet = imageInfoSet[:]
 
 
-#         ####pre-processing  Mask錯誤處理，重新regression####
+        ####pre-processing  Mask錯誤處理，重新regression####
 
-#         for imageInfo in imageInfoSet :
-#             if imageInfo.view == 'Up' or imageInfo.view == 'Below':
-#                 xList = []
-#                 yList = []
+        for imageInfo in imageInfoSet :
+            if imageInfo.view == 'Up' or imageInfo.view == 'Below':
+                xList = []
+                yList = []
                 
-#                 plt.xlim( 0,imageInfo.width )
-#                 plt.ylim( imageInfo.height,0 )
-#                 if imageInfo.view == 'Up':
-#                     imageInfo.teethNodeSet = sorted(imageInfo.teethNodeSet ,key = lambda x : ((x.box.y2+x.box.y1)/2.0),reverse = False)
-#                 else:
-#                     imageInfo.teethNodeSet = sorted(imageInfo.teethNodeSet ,key = lambda x : ((x.box.y2+x.box.y1)/2.0),reverse = True)
-                
-#                 deleteNodeList = []
-#                 for i in range(len(imageInfo.teethNodeSet)):
-#                     teethNode = imageInfo.teethNodeSet[i]
-#                     x,y = boxMiddle(teethNode.box)
-#                     weightedTeethNum = 0
-#                     weightVal = 1
-#                     if i < weightedTeethNum:
-#                         weightVal = 3
-                    
-#                     for k in range(weightVal):
-#                         if imageInfo.view == 'Up':
-#                             if not((imageInfo.width/4*1 < x < imageInfo.width/4*3) and (imageInfo.height/4*3 < y < imageInfo.height/4*4)):
-#                                 xList.append(x)
-#                                 yList.append(y)
-#                                 plt.gca().add_patch(Rectangle((teethNode.box.x1,teethNode.box.y1),teethNode.box.x2-teethNode.box.x1,teethNode.box.y2-teethNode.box.y1,linewidth=2,edgecolor='y',facecolor='none'))
-#                             else:
-#                                 deleteNodeList.append(teethNode)
-#                         else:
-#                             if not((imageInfo.width/4*1 < x < imageInfo.width/4*3) and (imageInfo.height/4*0 < y < imageInfo.height/4*1)):
-#                                 xList.append(x)
-#                                 yList.append(y)
-#                                 plt.gca().add_patch(Rectangle((teethNode.box.x1,teethNode.box.y1),teethNode.box.x2-teethNode.box.x1,teethNode.box.y2-teethNode.box.y1,linewidth=2,edgecolor='y',facecolor='none'))
-#                             else:
-#                                 deleteNodeList.append(teethNode)
-#                 for deleteNode in deleteNodeList:
-#                     imageInfo.teethNodeSet.remove(deleteNode)
+                plt.xlim( 0,imageInfo.width )
+                plt.ylim( imageInfo.height,0 )
+                if imageInfo.view == 'Up':
+                    imageInfo.teethNodeSet = sorted(imageInfo.teethNodeSet ,key = lambda x : ((x.box.y2+x.box.y1)/2.0),reverse = False)
+                else:
+                    imageInfo.teethNodeSet = sorted(imageInfo.teethNodeSet ,key = lambda x : ((x.box.y2+x.box.y1)/2.0),reverse = True)
+               
+                deleteNodeList = []
+                for i in range(len(imageInfo.teethNodeSet)):
+                    teethNode = imageInfo.teethNodeSet[i]
+                    x,y = boxMiddle(teethNode.box)
+                    weightedTeethNum = 0
+                    weightVal = 1
+                    if i < weightedTeethNum:
+                        weightVal = 3
+                  
+                    for k in range(weightVal):
+                        if imageInfo.view == 'Up':
+                            if not((imageInfo.width/4*1 < x < imageInfo.width/4*3) and (imageInfo.height/4*3 < y < imageInfo.height/4*4)):
+                                xList.append(x)
+                                yList.append(y)
+                                plt.gca().add_patch(Rectangle((teethNode.box.x1,teethNode.box.y1),teethNode.box.x2-teethNode.box.x1,teethNode.box.y2-teethNode.box.y1,linewidth=2,edgecolor='y',facecolor='none'))
+                            else:
+                                deleteNodeList.append(teethNode)
+                        else:
+                            if not((imageInfo.width/4*1 < x < imageInfo.width/4*3) and (imageInfo.height/4*0 < y < imageInfo.height/4*1)):
+                                xList.append(x)
+                                yList.append(y)
+                                plt.gca().add_patch(Rectangle((teethNode.box.x1,teethNode.box.y1),teethNode.box.x2-teethNode.box.x1,teethNode.box.y2-teethNode.box.y1,linewidth=2,edgecolor='y',facecolor='none'))
+                            else:
+                                deleteNodeList.append(teethNode)
+                for deleteNode in deleteNodeList:
+                    imageInfo.teethNodeSet.remove(deleteNode)
 
-#                 xArray = np.array(xList)
-#                 yArray = np.array(yList)
-#                 polyLine = np.polyfit(xArray,yArray,2)
-#                 # print( "type poly = ",type(polyLine) ) 
-#                 # print( polyLine )
+                xArray = np.array(xList)
+                yArray = np.array(yList)
+                polyLine = np.polyfit(xArray,yArray,2)
+                # print( "type poly = ",type(polyLine) ) 
+                # print( polyLine )
 
-#                 plt.imshow(imageInfo.image)
-#                 plt.scatter(xArray,yArray) #draw dot
+                plt.imshow(imageInfo.image)
+                plt.scatter(xArray,yArray) #draw dot
 
-#                 p = np.poly1d( polyLine )
-#                 xArray.sort()
-#                 x_base = np.linspace(0,imageWidth,imageWidth)
-#                 plt.plot(x_base, p(x_base),color = 'red') #draw regression
-#                 imageInfo.regression = p
-#                 imageInfo.polyLine = polyLine
-#                 imageInfo.gradient = polyLine[0]
+                p = np.poly1d( polyLine )
+                xArray.sort()
+                x_base = np.linspace(0,imageWidth,imageWidth)
+                plt.plot(x_base, p(x_base),color = 'red') #draw regression
+                imageInfo.regression = p
+                imageInfo.polyLine = polyLine
+                imageInfo.gradient = polyLine[0]
 
-#                 pltSave(f"./result/{fileName}","pre_processing","pre_processing",imageInfo.imageName)
-#                 plt.clf()
+                pltSave(f"./result/{fileName}","pre_processing","pre_processing",imageInfo.imageName)
+                plt.clf()
 
         
 
         
-#         #####缺牙偵測#####
+        #####缺牙偵測#####
+        upLowerSixModel = my_get_model_instance_segmentation(2)
 
-#         upLowerSixModel = my_get_model_instance_segmentation(2)
+        # load weight from ./ckpts/
+        upLowerSixParamDict = torch.load("./ckpts/only_six_upLower_best_model.pth", device)
+        upLowerSixModel.load_state_dict(upLowerSixParamDict)
+        upLowerSixModel.to(device)
+        upLowerSixModel.eval()
 
-#         # load weight from ./ckpts/
-#         upLowerSixParamDict = torch.load("./ckpts/only_six_upLower_best_model.pth", device)
-#         upLowerSixModel.load_state_dict(upLowerSixParamDict)
-#         upLowerSixModel.to(device)
-#         upLowerSixModel.eval()
+        for imageInfo in imageFileInfo.photoImageSet:
+            ###### UP/Below #########
+            if imageInfo.view == 'Up' or imageInfo.view == 'Below':
+                missingLabelId,leftTeethNodeSet,rightTeethNodeSet = positionMissing(imageInfo)
 
-#         for imageInfo in imageFileInfo.photoImageSet:
-#             ###### UP/Below #########
-#             if imageInfo.view == 'Up' or imageInfo.view == 'Below':
-#                 missingLabelId,leftTeethNodeSet,rightTeethNodeSet = positionMissing(imageInfo)
-
-#                 if doubleCheckPivot(missingLabelId,imageInfo) :
-#                     #print('double check => ',imageInfo.view)
-#                     doubleCheckPosition(imageInfo,leftTeethNodeSet,rightTeethNodeSet)
+                if doubleCheckPivot(missingLabelId,imageInfo) :
+                    #print('double check => ',imageInfo.view)
+                    doubleCheckPosition(imageInfo,leftTeethNodeSet,rightTeethNodeSet)
                 
-#                 upLowerThreshold = 0.99
-#                 sixBoxes = getBoundingBoxes(upLowerSixModel,upLowerThreshold,imageInfo)
+                upLowerThreshold = 0.99
+                sixBoxes = getBoundingBoxes(upLowerSixModel,upLowerThreshold,imageInfo)
 
-#                 leftTeethNodeSet  = check5Missing(leftTeethNodeSet, sixBoxes)
-#                 rightTeethNodeSet = check5Missing(rightTeethNodeSet,sixBoxes)
+                leftTeethNodeSet  = check5Missing(leftTeethNodeSet, sixBoxes)
+                rightTeethNodeSet = check5Missing(rightTeethNodeSet,sixBoxes)
 
-#                 imageFileInfo.missingLabelId += missingLabel(imageInfo.view,leftTeethNodeSet,rightTeethNodeSet)
-#                 imageInfo.teethNodeSet = []
-#                 imageInfo.teethNodeSet += leftTeethNodeSet
-#                 imageInfo.teethNodeSet += rightTeethNodeSet
-#                 # labelToImageInfo(imageInfo.teethNodeSet,leftTeethNodeSet)
-#                 # labelToImageInfo(imageInfo.teethNodeSet,rightTeethNodeSet)
-
-
-
-#         print("missing = ",imageFileInfo.missingLabelId)
+                imageFileInfo.missingLabelId += missingLabel(imageInfo.view,leftTeethNodeSet,rightTeethNodeSet)
+                imageInfo.teethNodeSet = []
+                imageInfo.teethNodeSet += leftTeethNodeSet
+                imageInfo.teethNodeSet += rightTeethNodeSet
+                # labelToImageInfo(imageInfo.teethNodeSet,leftTeethNodeSet)
+                # labelToImageInfo(imageInfo.teethNodeSet,rightTeethNodeSet)
 
 
-#         #####左右正面觀 標號#########
+
+        print("missing = ",imageFileInfo.missingLabelId)
+
+
+        #####左右正面觀 標號#########
         
-#         for imageInfo in imageFileInfo.photoImageSet:
-#                 ###### Left/RIGHT ########
-#             if imageInfo.view == 'Right' or imageInfo.view == 'Left':  
-#                 #upTeethNodeSet = [] #第一象限
-#                 #belowTeethNodeSet = [] #第四象限
+        for imageInfo in imageFileInfo.photoImageSet:
+                ###### Left/RIGHT ########
+            if imageInfo.view == 'Right' or imageInfo.view == 'Left':  
+                #upTeethNodeSet = [] #第一象限
+                #belowTeethNodeSet = [] #第四象限
 
-#                 upTeethNodeSet,belowTeethNodeSet = leftRightLabel(imageInfo)
-#                 imageInfo.teethNodeSet = []
-#                 imageInfo.teethNodeSet += upTeethNodeSet
-#                 imageInfo.teethNodeSet += belowTeethNodeSet
-#                 # labelToImageInfo(imageInfo.teethNodeSet,upTeethNodeSet)
-#                 # labelToImageInfo(imageInfo.teethNodeSet,belowTeethNodeSet)
+                upTeethNodeSet,belowTeethNodeSet = leftRightLabel(imageInfo)
+                imageInfo.teethNodeSet = []
+                imageInfo.teethNodeSet += upTeethNodeSet
+                imageInfo.teethNodeSet += belowTeethNodeSet
+                # labelToImageInfo(imageInfo.teethNodeSet,upTeethNodeSet)
+                # labelToImageInfo(imageInfo.teethNodeSet,belowTeethNodeSet)
 
-#             ###### Face #########
-#             if imageInfo.view == 'Face':
-#                 teethNodeSet = imageInfo.teethNodeSet
-#                 upTeethNodeSet = [] #第一、二象限
-#                 belowTeethNodeSet = [] #第三、四象限
+            ###### Face #########
+            if imageInfo.view == 'Face':
+                teethNodeSet = imageInfo.teethNodeSet
+                upTeethNodeSet = [] #第一、二象限
+                belowTeethNodeSet = [] #第三、四象限
 
-#                 for teethNode in teethNodeSet:
-#                     Ymiddle = imageInfo.regression((teethNode.box.x1+teethNode.box.x2)/2)#以回歸線為中線
-#                     if Ymiddle > (teethNode.box.y1 + teethNode.box.y2)/2:
-#                         upTeethNodeSet.append(teethNode)
-#                     else:
-#                         belowTeethNodeSet.append(teethNode)
+                for teethNode in teethNodeSet:
+                    Ymiddle = imageInfo.regression((teethNode.box.x1+teethNode.box.x2)/2)#以回歸線為中線
+                    if Ymiddle > (teethNode.box.y1 + teethNode.box.y2)/2:
+                        upTeethNodeSet.append(teethNode)
+                    else:
+                        belowTeethNodeSet.append(teethNode)
 
-#                 #belowTeethNodeSet = sorted(belowTeethNodeSet,key = lambda x : ((x.box.x2+x.box.x1)/2.0),reverse = True)
+                #belowTeethNodeSet = sorted(belowTeethNodeSet,key = lambda x : ((x.box.x2+x.box.x1)/2.0),reverse = True)
 
-#                 partitionX = imageInfo.width/2
-#                 if imageFileInfo.missingLabelId.count(11)==0 and  imageFileInfo.missingLabelId.count(11)==0:
-#                     upTeethNodeSet  = sorted(upTeethNodeSet ,key = lambda x : ((x.box.x2-x.box.x1)*(x.box.y2-x.box.y1)),reverse = True) #sort by bounding box area
-#                     upTeethNodeSet[:2]  = sorted(upTeethNodeSet[:2] ,key = lambda x : (x.box.x1) ) #讓[0]為右門牙(第一象限,11)，[1]為左門牙(第二象限21)
-#                     partitionX = (upTeethNodeSet[0].box.x2 + upTeethNodeSet[1].box.x1)/2 #中心線分左右
-#                 else:
-#                     partitionX = imageInfo.width/2
+                partitionX = imageInfo.width/2
+                if imageFileInfo.missingLabelId.count(11)==0 and  imageFileInfo.missingLabelId.count(11)==0:
+                    upTeethNodeSet  = sorted(upTeethNodeSet ,key = lambda x : ((x.box.x2-x.box.x1)*(x.box.y2-x.box.y1)),reverse = True) #sort by bounding box area
+                    upTeethNodeSet[:2]  = sorted(upTeethNodeSet[:2] ,key = lambda x : (x.box.x1) ) #讓[0]為右門牙(第一象限,11)，[1]為左門牙(第二象限21)
+                    partitionX = (upTeethNodeSet[0].box.x2 + upTeethNodeSet[1].box.x1)/2 #中心線分左右
+                else:
+                    partitionX = imageInfo.width/2
 
-#                 dimensionTeethNodeSet = ["Nothing in dimension 0",[],[],[],[]]
-#                 for teethNode in upTeethNodeSet:
-#                     if (teethNode.box.x1+teethNode.box.x2)/2 < partitionX:
-#                         dimensionTeethNodeSet[1].append(teethNode)
-#                     else:
-#                         dimensionTeethNodeSet[2].append(teethNode)
-#                 for teethNode in belowTeethNodeSet:
-#                     if (teethNode.box.x1+teethNode.box.x2)/2 < partitionX:
-#                         dimensionTeethNodeSet[4].append(teethNode)
-#                     else:
-#                         dimensionTeethNodeSet[3].append(teethNode)
+                dimensionTeethNodeSet = ["Nothing in dimension 0",[],[],[],[]]
+                for teethNode in upTeethNodeSet:
+                    if (teethNode.box.x1+teethNode.box.x2)/2 < partitionX:
+                        dimensionTeethNodeSet[1].append(teethNode)
+                    else:
+                        dimensionTeethNodeSet[2].append(teethNode)
+                for teethNode in belowTeethNodeSet:
+                    if (teethNode.box.x1+teethNode.box.x2)/2 < partitionX:
+                        dimensionTeethNodeSet[4].append(teethNode)
+                    else:
+                        dimensionTeethNodeSet[3].append(teethNode)
                 
-#                 dimensionTeethNodeSet[1]  = sorted(dimensionTeethNodeSet[1] ,key = lambda x : ((x.box.x2+x.box.x1)/2.0),reverse = True)
-#                 dimensionTeethNodeSet[2]  = sorted(dimensionTeethNodeSet[2] ,key = lambda x : ((x.box.x2+x.box.x1)/2.0),reverse = False)
-#                 dimensionTeethNodeSet[3]  = sorted(dimensionTeethNodeSet[3] ,key = lambda x : ((x.box.x2+x.box.x1)/2.0),reverse = False)
-#                 dimensionTeethNodeSet[4]  = sorted(dimensionTeethNodeSet[4] ,key = lambda x : ((x.box.x2+x.box.x1)/2.0),reverse = True)
+                dimensionTeethNodeSet[1]  = sorted(dimensionTeethNodeSet[1] ,key = lambda x : ((x.box.x2+x.box.x1)/2.0),reverse = True)
+                dimensionTeethNodeSet[2]  = sorted(dimensionTeethNodeSet[2] ,key = lambda x : ((x.box.x2+x.box.x1)/2.0),reverse = False)
+                dimensionTeethNodeSet[3]  = sorted(dimensionTeethNodeSet[3] ,key = lambda x : ((x.box.x2+x.box.x1)/2.0),reverse = False)
+                dimensionTeethNodeSet[4]  = sorted(dimensionTeethNodeSet[4] ,key = lambda x : ((x.box.x2+x.box.x1)/2.0),reverse = True)
 
-#                 imageInfo.teethNodeSet = []
-#                 for dimension in range(1,4+1): #象限1~4
-#                     index = 0
-#                     for labelId in range(dimension*10 + 1 , dimension*10 + 8 + 1 ): 
-#                         if index >= len(dimensionTeethNodeSet[ dimension ]):
-#                             break
-#                         if(imageFileInfo.missingLabelId.count(labelId) == 1):
-#                             #print(str(labelId)+"miss!")
-#                             nothing = 'nothing'
-#                         else:
-#                             dimensionTeethNodeSet[dimension][ index ].labelId = labelId
-#                             index += 1
-#                     imageInfo.teethNodeSet += dimensionTeethNodeSet[ dimension ]
-#                     #labelToImageInfo(imageInfo.teethNodeSet,dimensionTeethNodeSet[ dimension ])
+                imageInfo.teethNodeSet = []
+                for dimension in range(1,4+1): #象限1~4
+                    index = 0
+                    for labelId in range(dimension*10 + 1 , dimension*10 + 8 + 1 ): 
+                        if index >= len(dimensionTeethNodeSet[ dimension ]):
+                            break
+                        if(imageFileInfo.missingLabelId.count(labelId) == 1):
+                            #print(str(labelId)+"miss!")
+                            nothing = 'nothing'
+                        else:
+                            dimensionTeethNodeSet[dimension][ index ].labelId = labelId
+                            index += 1
+                    imageInfo.teethNodeSet += dimensionTeethNodeSet[ dimension ]
+                    # labelToImageInfo(imageInfo.teethNodeSet,dimensionTeethNodeSet[ dimension ])
 
-# #########著色#########        
-#         with open('teeth_rgb.json') as jf:
-#             with open('error_rgb.json') as errorJson:
-#                 colorData = json.load(jf)
-#                 errorData = json.load(errorJson)
-#                 for imageInfo in imageFileInfo.photoImageSet:
-#                     errorIndex = ord('a')
-#                     imageName = imageInfo.imageName
-#                     print(imageName,' => draw color')
-#                     img = imageInfo.image.copy()
-#                     black_img = Image.new('RGB', tuple([len(img[0]),len(img)]), (0, 0, 0))
-#                     npimg = np.array(img, dtype=np.uint8)
-#                     npblack_img = np.array(black_img, dtype=np.uint8)
-#                     for teethNode in imageInfo.teethNodeSet:
-#                         # print("label",teethNode.labelId)
-#                         if str(teethNode.labelId) not in colorData[0]: #新增找不到label
-#                             if isLabel:
-#                                 color = errorData[0][chr(errorIndex)].copy()  
-#                                 color.reverse()  # rgb,bgr
-#                                 teethNode.labelId = chr(errorIndex)
-#                                 errorIndex += 1
-#                                 npimg[np.where(teethNode.mask>0)] = color
-#                                 npblack_img[np.where(teethNode.mask>0)] = color
-#                         else:
-#                             #print(teethNode.labelId," => ",extract_box_brightness(imageInfo.image,teethNode.box))
-#                             #print(teethNode.labelId," => ",extract_mask_brightness(imageInfo.image,teethNode.mask))
-#                             color = colorData[0][str(teethNode.labelId)].copy()  # lableId = -1, 要擋掉
-#                             color.reverse()  # rgb,bgr
-#                             npimg[np.where(teethNode.mask>0)] = color
-#                             npblack_img[np.where(teethNode.mask>0)] = color
+#########著色#########        
+        with open('teeth_rgb.json') as jf:
+            with open('error_rgb.json') as errorJson:
+                colorData = json.load(jf)
+                errorData = json.load(errorJson)
+                for imageInfo in imageFileInfo.photoImageSet:
+                    errorIndex = ord('a')
+                    imageName = imageInfo.imageName
+                    print(imageName,' => draw color')
+                    img = imageInfo.image.copy()
+                    black_img = Image.new('RGB', tuple([len(img[0]),len(img)]), (0, 0, 0))
+                    npimg = np.array(img, dtype=np.uint8)
+                    npblack_img = np.array(black_img, dtype=np.uint8)
+                    for teethNode in imageInfo.teethNodeSet:
+                        # print("label",teethNode.labelId)
+                        if str(teethNode.labelId) not in colorData[0]: #新增找不到label
+                            if isLabel:
+                                color = errorData[0][chr(errorIndex)].copy()  
+                                color.reverse()  # rgb,bgr
+                                teethNode.labelId = chr(errorIndex)
+                                errorIndex += 1
+                                npimg[np.where(teethNode.mask>0)] = color
+                                npblack_img[np.where(teethNode.mask>0)] = color
+                        else:
+                            #print(teethNode.labelId," => ",extract_box_brightness(imageInfo.image,teethNode.box))
+                            #print(teethNode.labelId," => ",extract_mask_brightness(imageInfo.image,teethNode.mask))
+                            color = colorData[0][str(teethNode.labelId)].copy()  # lableId = -1, 要擋掉
+                            color.reverse()  # rgb,bgr
+                            npimg[np.where(teethNode.mask>0)] = color
+                            npblack_img[np.where(teethNode.mask>0)] = color
 
-#                     img = Image.fromarray(npimg)
-#                     black_img = Image.fromarray(npblack_img)
-#                     saveName =  viewOfficial(imageInfo.view) + '_' + fileName + '.png'
-#                     pilSave(black_img,f"./result/{fileName}","changeColor","",saveName)
-#                     pilSave(Image.fromarray(imageInfo.image.copy()),f"./sample/{fileName}","","",saveName)  
-#                     pilSave(Image.fromarray(imageInfo.image.copy()),f"./result/{fileName}","newNameSample","",saveName)  
-#                     for teethNode in imageInfo.teethNodeSet:
-#                         if isLabel or (str(teethNode.labelId) in colorData[0]):
-#                             fontSize = int(len(imageInfo.image[0])*0.03)
-#                             x = int((teethNode.box.x1+teethNode.box.x2)/2 - fontSize/2)
-#                             y = int((teethNode.box.y1+teethNode.box.y2)/2 - fontSize/2)
-#                             draw = ImageDraw.Draw(img)
-#                             font = ImageFont.truetype("arial.ttf", fontSize)
-#                             draw.text((x,y),str(teethNode.labelId),font = font)
-#                             imgDraw = ImageDraw.Draw(img)
-#                             imgDraw.rectangle([(teethNode.box.x1, teethNode.box.y1), (teethNode.box.x2, teethNode.box.y2)],outline = "red", width=5)
-#                     # print(type( Image.fromarray(np.hstack([imageInfo.image,np.array(img)])) ))
-#                     # print( type(black_img) )
-#                     pilSave(Image.fromarray(np.hstack([imageInfo.image,np.array(img)])),f"./result/{fileName}","color","seg",saveName) 
-#                     pilSave(black_img,f"./result/{fileName}","color","mask",saveName)
-
+                    img = Image.fromarray(npimg)
+                    black_img = Image.fromarray(npblack_img)
+                    saveName =  viewOfficial(imageInfo.view) + '_' + fileName + '.png'
+                    pilSave(black_img,f"./result/{fileName}","changeColor","",saveName)
+                    pilSave(Image.fromarray(imageInfo.image.copy()),f"./sample/{fileName}","","",saveName)  
+                    pilSave(Image.fromarray(imageInfo.image.copy()),f"./result/{fileName}","newNameSample","",saveName)  
+                    for teethNode in imageInfo.teethNodeSet:
+                        if isLabel or (str(teethNode.labelId) in colorData[0]):
+                            fontSize = int(len(imageInfo.image[0])*0.03)
+                            x = int((teethNode.box.x1+teethNode.box.x2)/2 - fontSize/2)
+                            y = int((teethNode.box.y1+teethNode.box.y2)/2 - fontSize/2)
+                            draw = ImageDraw.Draw(img)
+                            font = ImageFont.truetype("arial.ttf", fontSize)
+                            draw.text((x,y),str(teethNode.labelId),font = font)
+                            imgDraw = ImageDraw.Draw(img)
+                            imgDraw.rectangle([(teethNode.box.x1, teethNode.box.y1), (teethNode.box.x2, teethNode.box.y2)],outline = "red", width=5)
+                    # print(type( Image.fromarray(np.hstack([imageInfo.image,np.array(img)])) ))
+                    # print( type(black_img) )
+                    pilSave(Image.fromarray(np.hstack([imageInfo.image,np.array(img)])),f"./result/{fileName}","color","seg",saveName) 
+                    pilSave(black_img,f"./result/{fileName}","color","mask",saveName)
+'''
 
 
 

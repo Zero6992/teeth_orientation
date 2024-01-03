@@ -712,6 +712,7 @@ def pltSave(path,fileLabel,prefix,imageName):
 
 def makeResultDirProcess(fileName):
     redir = 'result'
+    #redir = 'new_result'
     sampleDir = 'sample'
     file = os.path.join(redir)
     os.makedirs(file,exist_ok=True)
@@ -721,7 +722,7 @@ def makeResultDirProcess(fileName):
     os.makedirs(file,exist_ok=True)
     file = os.path.join(sampleDir,  fileName)
     os.makedirs(file,exist_ok=True)
-    createFile = ['det','seg','regression','sample','color','pre_processing','changeColor','mask','newNameSample','boundingBox','node']
+    createFile = ['det','seg','regression','sample','color','pre_processing','changeColor','mask','newNameSample','boundingBox','node','cut']
     for name in createFile:
         tmp = os.path.join(redir, fileName, name)
         os.makedirs(tmp,exist_ok=True)
@@ -831,6 +832,7 @@ if __name__ == "__main__":
     # path setting
     # load every file in ./dataset/Sample
     root = 'dataset'
+    #root = 'new_dataset'
     samdir = 'Sample'
 
     # load direction
@@ -881,6 +883,7 @@ if __name__ == "__main__":
             pltImage = np.array(image)
             
             pilSave(image,f"./result/{fileName}","sample","",imageName)
+            #pilSave(image,f"./new_result/{fileName}","sample","",imageName)
 
 
             imageWidth = image.width
@@ -896,7 +899,8 @@ if __name__ == "__main__":
             image = tensor2image(images[0].cpu())
             img = image.copy()
 
-            # pilSave(img,f"./result/{fileName}","cut","cut",imageName)
+            pilSave(img,f"./result/{fileName}","cut","cut",imageName)
+            #pilSave(img,f"./new_result/{fileName}","cut","cut",imageName)
 
             # print("a:size",img.size)
             # print("a:type",type(img.size))
@@ -906,7 +910,7 @@ if __name__ == "__main__":
             boxes = output["boxes"]
             masks = output["masks"]
 
-            print( "boxes = " , boxes )##################################
+            #print( "boxes = " , boxes )#################################
 
             #print( "img type = " ,type(img) )
             #print( "draw type = ",type(draw) )
@@ -920,43 +924,12 @@ if __name__ == "__main__":
 
             teethLocationSet = []
             imageTeethNodeSet = []
+            
             '''
             minX = 100000
             minY = 100000
             maxX = 0
             maxY = 0
-
-            for box, score in zip(boxes, scores):
-                if score.item() > bb_thre:
-                    #print('box score',score.item())
-                    #teethCnt += 1
-                    box = [b.item() for b in box]
-                    x1, y1, x2 ,y2 = box
-                    x1 = max(int(x1), 0)
-                    y1 = max(int(y1), 0)
-                    x2 = min(int(x2), imageWidth)
-                    y2 = min(int(y2), imageHeight)
-                    minX = min(x1, minX)
-                    minY = min(y1, minY)
-                    maxX = max(x2, maxX)
-                    maxY = max(y2, maxY)
-
-
-            Cutimage = Image.open(f"./result/{fileName}/cut/cut_{imageName[:-3]}png")
-            Cutimage = exif_transpose(Cutimage)
-
-            minX = max(0,minX-100)
-            minY =  max(0,minY-100)
-            maxX = min(Cutimage.width, maxX+100)
-            maxY = min(Cutimage.height, maxY+100)
-
-            Cutimage = Cutimage.crop((minX,minY,maxX,maxY))
-
-            pilSave(Cutimage,f"./result/{fileName}","cut","cut",imageName)
-            '''
-            
-            writeFile = open(f"./result/{fileName}/boundingBox/box_{imageName[:-3]}csv",mode="w",newline="")
-            csvWriter = csv.writer(writeFile)
 
             for box in boxes:
                 x1, y1, x2 ,y2 = box
@@ -964,9 +937,89 @@ if __name__ == "__main__":
                 y1 = max(int(y1), 0)
                 x2 = min(int(x2), imageWidth)
                 y2 = min(int(y2), imageHeight)
-                csvWriter.writerow([x1,y1,x2,y2])
+                minX = min(x1, minX)
+                minY = min(y1, minY)
+                maxX = max(x2, maxX)
+                maxY = max(y2, maxY)
 
-            writeFile.close()
+
+            Cutimage = Image.open(f"./result/{fileName}/cut/cut_{imageName[:-3]}png")
+            Cutimage = exif_transpose(Cutimage)
+
+            minX = max(0,minX-10)
+            minY =  max(0,minY-10)
+            maxX = min(imageWidth, maxX+10)
+            maxY = min(imageHeight, maxY+10)
+
+            if imageHeight < imageWidth:
+                if (maxY - minY) * 1.5 < (maxX - minX):
+                    if (maxY + ((maxX-minX)/1.5-(maxY-minY))/2) < imageHeight:
+                        maxY += ((maxX-minX)/1.5-(maxY-minY)) / 2
+                        if (minY - ((maxX-minX)/1.5-(maxY-minY))/2) > 0:
+                            minY -= ((maxX-minX)/1.5-(maxY-minY)) / 2
+                        else:
+                            maxY -= (minY - ((maxX-minX)/1.5-(maxY-minY))/2)
+                            minY = 0
+                    else:
+                        minY -= ((maxX-minX)/1.5-(maxY-minY)) / 2
+                        minY -= ((maxY + ((maxX-minX)/1.5-(maxY-minY))/2) - imageHeight)
+                        maxY = imageHeight
+                elif (maxY - minY) * 1.5 > (maxX - minX):
+                    if (maxX + ((maxY-minY)*1.5-(maxX-minX))/2) < imageWidth:
+                        maxX += ((maxY-minY)*1.5-(maxX-minX)) / 2
+                        if (minX - ((maxY-minY)*1.5-(maxX-minX))/2) > 0:
+                            minX -= ((maxY-minY)*1.5-(maxX-minX)) / 2
+                        else:
+                            maxX -= (minX - ((maxY-minY)*1.5-(maxX-minX))/2)
+                            minX = 0
+                    else:
+                        minX -= ((maxY-minY)*1.5-(maxX-minX)) / 2
+                        minX -= ((maxX + ((maxY-minY)*1.5-(maxX-minX))/2) - imageWidth)
+                        maxX = imageWidth
+            else:
+                if (maxX - minX) * 1.5 < (maxY - minY):
+                    if (maxX + ((maxY-minY)/1.5-(maxX-minX))/2) < imageWidth:
+                        maxX += ((maxY-minY)/1.5-(maxX-minX)) / 2
+                        if (minX - ((maxY-minY)/1.5-(maxX-minX))/2) > 0:
+                            minX -= ((maxY-minY)/1.5-(maxX-minX)) / 2
+                        else:
+                            maxX -= (minX - ((maxY-minY)/1.5-(maxX-minX))/2)
+                            minX = 0
+                    else:
+                        minX -= ((maxY-minY)/1.5-(maxX-minX)) / 2
+                        minX -= ((maxX + ((maxY-minY)/1.5-(maxX-minX))/2) - imageWidth)
+                        maxX = imageWidth
+                elif (maxX - minX) * 1.5 > (maxY - minY):
+                    if (maxY + ((maxX-minX)*1.5-(maxY-minY))/2) < imageHeight:
+                        maxY += ((maxX-minX)*1.5-(maxY-minY)) / 2
+                        if (minY - ((maxX-minX)*1.5-(maxY-minY))/2) > 0:
+                            minY -= ((maxX-minX)*1.5-(maxY-minY)) / 2
+                        else:
+                            maxY -= (minY - ((maxX-minX)*1.5-(maxY-minY))/2)
+                            minY = 0
+                    else:
+                        minY -= ((maxX-minX)*1.5-(maxY-minY)) / 2
+                        minY -= ((maxY + ((maxX-minX)*1.5-(maxY-minY))/2) - imageHeight)
+                        maxY = imageHeight
+
+            Cutimage = Cutimage.crop((minX,minY,maxX,maxY))
+
+            pilSave(Cutimage,f"./result/{fileName}","cut","cut",imageName)
+            '''
+            
+            writeFile = open(f"./result/{fileName}/boundingBox/box_{imageName[:-3]}csv",mode="w",newline="")
+            #writeFile = open(f"./new_result/{fileName}/boundingBox/box_{imageName[:-3]}csv",mode="w",newline="")
+            csvWriter = csv.writer(writeFile)
+
+            '''
+            for box in boxes:
+                x1, y1, x2 ,y2 = box
+                x1 = max(int(x1), 0)
+                y1 = max(int(y1), 0)
+                x2 = min(int(x2), imageWidth)
+                y2 = min(int(y2), imageHeight)
+                csvWriter.writerow([x1,y1,x2,y2])
+            '''
                     
             npimg = np.array(image.copy(), dtype=np.uint8)
             npblack_img = np.array(black_img, dtype=np.uint8)
@@ -988,6 +1041,7 @@ if __name__ == "__main__":
                     # y2 = int(y2)
 
                     teethLocationSet.append( TeethLocation(x1,y1,x2,y2) )
+                    csvWriter.writerow([x1,y1,x2,y2])
                     
                     xList.append( (x1+x2)/2 )
                     yList.append( (y1+y2)/2 )
@@ -1005,17 +1059,20 @@ if __name__ == "__main__":
                     detLineScale = 0.005 #det line width scale
                     draw.line([(x1,y1),(x2,y1),(x2,y2),(x1,y2),(x1,y1)], fill=color, width=int(imageWidth*detLineScale))
                     # draw.text((x1,y1), f"{score.item():.4f}", font=fnt) # draw confidence
-
-            xArray = np.array(xList)
-            yArray = np.array(yList)
+            
+            writeFile.close()
 
             writeFile = open(f"./result/{fileName}/node/node_{imageName[:-3]}csv",mode="w",newline="")
+            #writeFile = open(f"./new_result/{fileName}/node/node_{imageName[:-3]}csv",mode="w",newline="")
             csvWriter = csv.writer(writeFile)
 
             csvWriter.writerow(xList)
             csvWriter.writerow(yList)
 
             writeFile.close()
+
+            xArray = np.array(xList)
+            yArray = np.array(yList)
 
             plt.xlim( 0,imageWidth )
             plt.ylim( imageHeight,0 )
@@ -1032,6 +1089,7 @@ if __name__ == "__main__":
             plt.plot(x_base, p(x_base),color = 'red') #draw regression
 
             pltSave(f"./result/{fileName}","regression","regression",imageName)
+            #pltSave(f"./new_result/{fileName}","regression","regression",imageName)
             plt.clf()
 
             imageGray = cv2.cvtColor(pltImage,cv2.COLOR_BGR2GRAY)
@@ -1045,16 +1103,20 @@ if __name__ == "__main__":
                 imageFileInfo.is3D = False
             
             pilSave(img,f"./result/{fileName}","det","det",imageName)
+            #pilSave(img,f"./new_result/{fileName}","det","det",imageName)
 
             img = Image.fromarray(npimg)
             black_img = Image.fromarray(npblack_img)
             
-            pilSave(img,f"./result/{fileName}","seg","seg",imageName)  
+            pilSave(img,f"./result/{fileName}","seg","seg",imageName)
+            #pilSave(img,f"./new_result/{fileName}","seg","seg",imageName)
             pilSave(black_img,f"./result/{fileName}","mask","mask",imageName)
+            #pilSave(black_img,f"./new_result/{fileName}","mask","mask",imageName)
 
             # exit()
 
         writeFile = open(f"./result/{fileName}/imageClassification.csv",mode="w",newline="")
+        #writeFile = open(f"./new_result/{fileName}/imageClassification.csv",mode="w",newline="")
         csvWriter = csv.writer(writeFile)
 
         sortGradient(imageInfoSet)

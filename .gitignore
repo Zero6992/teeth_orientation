@@ -2,4 +2,8 @@ ckpts/
 Sample_2/
 .DS_Store
 result/
+new_result/
 orientation/
+orientation2/
+new_dataset/
+teethOrientationVer2.py

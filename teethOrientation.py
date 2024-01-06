@@ -5,6 +5,12 @@ import csv
 import numpy as np
 from matplotlib.pyplot import *
 from matplotlib import pyplot as plt
+import math
+
+def rotate(x,y,angle): #rotate x,y around 0,0 by angle (rad)
+    xr=math.cos(angle)*x-math.sin(angle)*y
+    yr=math.sin(angle)*x+math.cos(angle)*y
+    return [xr,yr]
 
 def makeImgLandscape(image):
     # Check if the image is in portrait orientation (height > width)
@@ -39,7 +45,6 @@ for folder_name in os.listdir(result_folder_path):
     folder_path = os.path.join(result_folder_path, folder_name)
 
     if os.path.isdir(folder_path):
-        #sample_folder_path = os.path.join(folder_path, 'sample')
         sample_folder_path = os.path.join(folder_path, 'sample')
         mask_folder_path = os.path.join(folder_path, 'mask')
         csv_file_path = os.path.join(folder_path, 'imageClassification.csv')
@@ -80,13 +85,14 @@ for folder_name in os.listdir(result_folder_path):
                         image = image.transpose(Image.FLIP_LEFT_RIGHT)
 
                     # Create the output folder structure mirroring the input structure
-                    output_subfolder_path = os.path.join(output_folder_path, folder_name, 'sample')
+                    output_subfolder_path = os.path.join(output_folder_path, folder_name, '0_sample')
                     os.makedirs(output_subfolder_path, exist_ok=True)
 
                     # Save the processed image to the 'orientation' folder
                     output_image_path = os.path.join(output_subfolder_path, image_filename)
                     image.save(output_image_path)
 
+                    # Load bounding boxes' positions
                     csv_path = os.path.join(box_folder_path, f"box_{image_filename[:-3]}csv")
                     readFile = open(csv_path,mode='r',newline='')
                     csvreader = csv.reader(readFile)
@@ -97,110 +103,7 @@ for folder_name in os.listdir(result_folder_path):
                             nArray.append(float(item))
                         boxArray.append(nArray)
                     
-                    minX = 100000
-                    minY = 100000
-                    maxX = 0
-                    maxY = 0
-
-                    for box in boxArray:
-                        x1, y1, x2 ,y2 = box
-                        x1 = max(int(x1), 0)
-                        y1 = max(int(y1), 0)
-                        x2 = min(int(x2), Cutimage.width)
-                        y2 = min(int(y2), Cutimage.height)
-                        minX = min(x1, minX)
-                        minY = min(y1, minY)
-                        maxX = max(x2, maxX)
-                        maxY = max(y2, maxY)
-
-                    minX = max(0,minX-50)
-                    minY =  max(0,minY-50)
-                    maxX = min(Cutimage.width, maxX+50)
-                    maxY = min(Cutimage.height, maxY+50)
-                    
-                    if Cutimage.height < Cutimage.width:
-                        if (maxY - minY) * 1.5 < (maxX - minX):
-                            if (maxY + ((maxX-minX)/1.5-(maxY-minY))/2) < Cutimage.height:
-                                maxY += ((maxX-minX)/1.5-(maxY-minY)) / 2
-                                if (minY - ((maxX-minX)/1.5-(maxY-minY))/2) > 0:
-                                    minY -= ((maxX-minX)/1.5-(maxY-minY)) / 2
-                                else:
-                                    maxY -= (minY - ((maxX-minX)/1.5-(maxY-minY))/2)
-                                    minY = 0
-                            else:
-                                minY -= ((maxX-minX)/1.5-(maxY-minY)) / 2
-                                minY -= ((maxY + ((maxX-minX)/1.5-(maxY-minY))/2) - Cutimage.height)
-                                maxY = Cutimage.height
-                        elif (maxY - minY) * 1.5 > (maxX - minX):
-                            if (maxX + ((maxY-minY)*1.5-(maxX-minX))/2) < Cutimage.width:
-                                maxX += ((maxY-minY)*1.5-(maxX-minX)) / 2
-                                if (minX - ((maxY-minY)*1.5-(maxX-minX))/2) > 0:
-                                    minX -= ((maxY-minY)*1.5-(maxX-minX)) / 2
-                                else:
-                                    maxX -= (minX - ((maxY-minY)*1.5-(maxX-minX))/2)
-                                    minX = 0
-                            else:
-                                minX -= ((maxY-minY)*1.5-(maxX-minX)) / 2
-                                minX -= ((maxX + ((maxY-minY)*1.5-(maxX-minX))/2) - Cutimage.width)
-                                maxX = Cutimage.width
-                    else:
-                        if (maxX - minX) * 1.5 < (maxY - minY):
-                            if (maxX + ((maxY-minY)/1.5-(maxX-minX))/2) < Cutimage.width:
-                                maxX += ((maxY-minY)/1.5-(maxX-minX)) / 2
-                                if (minX - ((maxY-minY)/1.5-(maxX-minX))/2) > 0:
-                                    minX -= ((maxY-minY)/1.5-(maxX-minX)) / 2
-                                else:
-                                    maxX -= (minX - ((maxY-minY)/1.5-(maxX-minX))/2)
-                                    minX = 0
-                            else:
-                                minX -= ((maxY-minY)/1.5-(maxX-minX)) / 2
-                                minX -= ((maxX + ((maxY-minY)/1.5-(maxX-minX))/2) - Cutimage.width)
-                                maxX = Cutimage.width
-                        elif (maxX - minX) * 1.5 > (maxY - minY):
-                            if (maxY + ((maxX-minX)*1.5-(maxY-minY))/2) < Cutimage.height:
-                                maxY += ((maxX-minX)*1.5-(maxY-minY)) / 2
-                                if (minY - ((maxX-minX)*1.5-(maxY-minY))/2) > 0:
-                                    minY -= ((maxX-minX)*1.5-(maxY-minY)) / 2
-                                else:
-                                    maxY -= (minY - ((maxX-minX)*1.5-(maxY-minY))/2)
-                                    minY = 0
-                            else:
-                                minY -= ((maxX-minX)*1.5-(maxY-minY)) / 2
-                                minY -= ((maxY + ((maxX-minX)*1.5-(maxY-minY))/2) - Cutimage.height)
-                                maxY = Cutimage.height
-                    ''''''
-
-                    if Cutimage.height > Cutimage.width:
-                        temp = minX
-                        minX = minY
-                        minY = Cutimage.width - maxX
-                        maxX = maxY
-                        maxY = Cutimage.width - temp
-
-                    if label != 'Face':
-                        if Cutimage.height > Cutimage.width:
-                            temp = minX
-                            minX = Cutimage.height - maxX
-                            maxX = Cutimage.height - temp
-                        else:
-                            temp = minX
-                            minX = Cutimage.width - maxX
-                            maxX = Cutimage.width - temp
-
-                    Cutimage = makeImgLandscape(Cutimage)
-
-                    if label != 'Face':
-                        Cutimage = Cutimage.transpose(Image.FLIP_LEFT_RIGHT)
-                    
-                    Cutimage = Cutimage.crop((minX,minY,maxX,maxY))
-                    #print("Cut [", minX, ",", minY, ",", maxX, ",", maxY,"]")
-
-                    output_subfolder_path = os.path.join(output_folder_path, folder_name, 'crop')
-                    os.makedirs(output_subfolder_path, exist_ok=True)
-
-                    output_image_path = os.path.join(output_subfolder_path, f"crop_{image_filename}")
-                    Cutimage.save(output_image_path)
-
+                    # Load nodes' positions
                     csv_path = os.path.join(node_folder_path, f"node_{image_filename[:-3]}csv")
                     readFile = open(csv_path,mode='r',newline='')
                     csvreader = csv.reader(readFile)
@@ -211,31 +114,75 @@ for folder_name in os.listdir(result_folder_path):
                             nArray.append(float(item))
                         nodeArray.append(nArray)
 
-                    if imgWidth < imgHeight:
+                    # Find nodes far away from others
+                    newnodeArray = []
+                    for i in range(len(nodeArray[0])):
+                        newnodeArray.append([nodeArray[0][i],nodeArray[1][i]])
+
+                    column_name = ['x','y']
+                    node_df = pd.DataFrame(newnodeArray)
+                    node_df.columns = column_name
+
+                    node_df['x'] = np.log1p(node_df['x'])
+                    node_df['y'] = np.log1p(node_df['y'])
+
+                    Q1 = np.percentile(node_df['x']**2+node_df['y']**2-Cutimage.width**2-Cutimage.height**2, 25)
+                    Q3 = np.percentile(node_df['x']**2+node_df['y']**2-Cutimage.width**2-Cutimage.height**2, 75)
+                    IQR = Q3 - Q1
+                    n = 1
+
+                    upper = (node_df['x']**2+node_df['y']**2-Cutimage.width**2-Cutimage.height**2) >= (Q3+n*IQR)
+                    outputArray = np.array(np.where(upper))
+                    # Delete nodes and bounding boxes
+                    if len(outputArray[0]) > 0:
+                        nodeArray[0] = np.delete(nodeArray[0],outputArray[0])
+                        nodeArray[1] = np.delete(nodeArray[1],outputArray[0])
+                        for i in outputArray[0]:
+                            del boxArray[i]
+
+                    lower = (node_df['x']**2+node_df['y']**2) <= (Q1-n*IQR)
+                    outputArray = np.array(np.where(lower))
+                    # Delete nodes and bounding boxes
+                    if len(outputArray[0]) > 0:
+                        nodeArray[0] = np.delete(nodeArray[0],outputArray[0])
+                        nodeArray[1] = np.delete(nodeArray[1],outputArray[0])
+                        for i in outputArray[0]:
+                            del boxArray[i]
+
+                    # Rotate nodes, bounding boxes, and image 90 degrees
+                    if Cutimage.height > Cutimage.width:
+                        for box in boxArray:
+                            x0, y0, x1, y1 = box
+                            box[0] = y0
+                            box[1] = Cutimage.width - x1
+                            box[2] = y1
+                            box[3] = Cutimage.width - x0
                         temp = nodeArray[0]
                         nodeArray[0] = nodeArray[1]
                         nodeArray[1] = temp
                         for i in range(len(nodeArray[1])):
                             nodeArray[1][i] = imgWidth - nodeArray[1][i]
-                    
+                    Cutimage = makeImgLandscape(Cutimage)
+
+                    # Flip nodes, bounding boxes, and image horizontally
                     if label != 'Face':
+                        Cutimage = Cutimage.transpose(Image.FLIP_LEFT_RIGHT)
+                        for box in boxArray:
+                            x0, y0, x1, y1 = box
+                            box[0] = Cutimage.width - x1
+                            box[2] = Cutimage.width - x0
                         for i in range(len(nodeArray[0])):
                             nodeArray[0][i] = image.width - nodeArray[0][i]
-                    ''''''
-                        
-                    for i in range(len(nodeArray[0])):
-                        nodeArray[0][i] = nodeArray[0][i] - minX
-                        nodeArray[1][i] = nodeArray[1][i] - minY
                     
+                    # Create polynomial line
                     polyLine = np.polyfit(nodeArray[0],nodeArray[1],2)
-
                     p = np.poly1d( polyLine )
-                    #print(p)
                     
+                    # Find critical points
                     bounds = [0, Cutimage.width-1]
                     crit_points = bounds + [x for x in p.deriv().r if x.imag == 0 and bounds[0] < x.real < bounds[1]]
-                    #print(crit_points)
 
+                    # Find two points on the line
                     p1 = 0
                     p2 = 0
                     if len(crit_points) == 3:
@@ -243,20 +190,26 @@ for folder_name in os.listdir(result_folder_path):
                             p2 = Cutimage.width-1
                         else:
                             p2 = crit_points[2] + 50
-                        
                         if p(crit_points[2]) > p(p2):
                             if label == 'Up':
                                 Cutimage = Cutimage.transpose(Image.FLIP_TOP_BOTTOM)
                                 p = -p + Cutimage.height
+                                for box in boxArray:
+                                    x0, y0, x1, y1 = box
+                                    box[1] = Cutimage.height - y1
+                                    box[3] = Cutimage.height - y0
                                 for i in range(len(nodeArray[1])):
                                     nodeArray[1][i] = Cutimage.height - nodeArray[1][i]
                         else:
                             if label != 'Up':
                                 Cutimage = Cutimage.transpose(Image.FLIP_TOP_BOTTOM)
                                 p = -p + Cutimage.height
+                                for box in boxArray:
+                                    x0, y0, x1, y1 = box
+                                    box[1] = Cutimage.height - y1
+                                    box[3] = Cutimage.height - y0
                                 for i in range(len(nodeArray[1])):
                                     nodeArray[1][i] = Cutimage.height - nodeArray[1][i]
-                        ''''''
                         rangeArray = np.arange(0,Cutimage.width-1,0.001)
                         for i in rangeArray:
                             if (p(i)-p(p2)<=0.001 and p(i)-p(p2)>=0) or (p(p2)-p(i)<=0.001 and p(p2)-p(i)>=0):
@@ -269,48 +222,201 @@ for folder_name in os.listdir(result_folder_path):
                             if label == 'Up':
                                 Cutimage = Cutimage.transpose(Image.FLIP_TOP_BOTTOM)
                                 p = -p + Cutimage.height
+                                for box in boxArray:
+                                    x0, y0, x1, y1 = box
+                                    box[1] = Cutimage.height - y1
+                                    box[3] = Cutimage.height - y0
                                 for i in range(len(nodeArray[1])):
                                     nodeArray[1][i] = Cutimage.height - nodeArray[1][i]
                         else:
                             if label != 'Up':
                                 Cutimage = Cutimage.transpose(Image.FLIP_TOP_BOTTOM)
                                 p = -p + Cutimage.height
+                                for box in boxArray:
+                                    x0, y0, x1, y1 = box
+                                    box[1] = Cutimage.height - y1
+                                    box[3] = Cutimage.height - y0
                                 for i in range(len(nodeArray[1])):
                                     nodeArray[1][i] = Cutimage.height - nodeArray[1][i]
-                        ''''''
                     
-                    
-                    #print("p1 = ", p1, " -> ", p(p1))
-                    #print("p2 = ", p2, " -> ", p(p2))
+                    # The angle to rotate
                     slope = (p(p2)-p(p1)) / (p2-p1)
-                    angle = np.rad2deg(slope)#np.arctan(slope)
-                    #print(slope)
+                    angle = np.rad2deg(np.arctan(slope))
 
-                    npimg = np.array(Cutimage.copy(), dtype=np.uint8)
-                    pltImage = np.array(Cutimage)
-
-                    print(angle)
                     Cutimage = Cutimage.rotate(angle,expand=1)
 
-                    output_subfolder_path = os.path.join(output_folder_path, folder_name, 'rotate')
+                    # Save rotated image
+                    output_subfolder_path = os.path.join(output_folder_path, folder_name, '1_rotate')
                     os.makedirs(output_subfolder_path, exist_ok=True)
 
                     output_image_path = os.path.join(output_subfolder_path, f"rotate_{image_filename}")
                     Cutimage.save(output_image_path)
 
-                    plt.imshow(pltImage)
-                    plt.scatter(nodeArray[0],nodeArray[1])
-                    plt.scatter([p1,p2],[p(p1),p(p2)])
+                    # Rotate nodes and bounding boxes
+                    for i in range(len(nodeArray[0])):
+                        nodeArray[0][i], nodeArray[1][i] = rotate(nodeArray[0][i], nodeArray[1][i], -np.arctan(slope))
+                        nodeArray[1][i] += math.sin(np.arctan(slope)) * image.width
+                    for box in boxArray:
+                        x0, y0, x1, y1 = box
+                        boxwidth = x1 - x0
+                        box[0], box[1] = rotate(x0, y0, -np.arctan(slope))
+                        box[2], box[3] = rotate(x1, y1, -np.arctan(slope))
+                        box[1] += math.sin(np.arctan(slope)) * image.width
+                        box[1] -= math.sin(np.arctan(slope)) * boxwidth
+                        box[3] += math.sin(np.arctan(slope)) * image.width
+                        box[3] += math.sin(np.arctan(slope)) * boxwidth
 
+                    pltImage = np.array(Cutimage)
+                    plt.imshow(pltImage)
+                    # Plot nodes
+                    plt.scatter(nodeArray[0],nodeArray[1])
+
+                    # Create a new line after rotating
+                    polyLine = np.polyfit(nodeArray[0],nodeArray[1],2)
+                    p = np.poly1d( polyLine )
+                    
+                    # Find the new critical points
+                    bounds = [0, Cutimage.width-1]
+                    crit_points = bounds + [x for x in p.deriv().r if x.imag == 0 and bounds[0] < x.real < bounds[1]]
+
+                    # Plot new line
                     x_base = np.linspace(0,Cutimage.width,Cutimage.width)
                     plt.plot(x_base, p(x_base),color = 'red')
 
-                    output_subfolder_path = os.path.join(output_folder_path, folder_name, 'line')
+                    # Save img with nodes and line
+                    output_subfolder_path = os.path.join(output_folder_path, folder_name, '2_line_after_rotate')
                     os.makedirs(output_subfolder_path, exist_ok=True)
 
-                    output_image_path = os.path.join(output_subfolder_path, f"line_{image_filename}")
+                    output_image_path = os.path.join(output_subfolder_path, f"line_after_rotate_{image_filename}")
                     plt.savefig(output_image_path)
                     plt.clf()
+
+                    # Draw bounding boxes
+                    Cutimg = Cutimage.copy()
+                    draw = ImageDraw.Draw(Cutimg)
+                    for box in boxArray:
+                        x1, y1, x2 ,y2 = box
+                        color = tuple(np.random.choice(range(256), size=3))
+                        detLineScale = 0.005
+                        draw.line([(x1,y1),(x2,y1),(x2,y2),(x1,y2),(x1,y1)], fill=color, width=int(Cutimage.width*detLineScale))
+
+                    # Save img with bounding boxes
+                    output_subfolder_path = os.path.join(output_folder_path, folder_name, '2_det')
+                    os.makedirs(output_subfolder_path, exist_ok=True)
+
+                    output_image_path = os.path.join(output_subfolder_path, f"det_{image_filename}")
+                    Cutimg.save(output_image_path)
+
+                    # Find the area to crop
+                    minX = -1
+                    maxX = 0
+                    minY, maxY = -1, 0
+                    rangeArray = np.arange(0,Cutimage.width,1)
+                    for x in rangeArray:
+                        if minX == -1 and p(x) <= 5 and p(x) >= 0:
+                            if x - 50 >= 0:
+                                minX = x - 50
+                            else:
+                                minX = 0
+                            if len(boxArray) >= 14 and len(boxArray) <= 16:
+                                minY = 10000
+                                for box in boxArray:
+                                    x1, y1, x2 ,y2 = box
+                                    minY = min(y1, minY)
+                                minY = max(0, minY-40)
+                            else:
+                                minY = 0
+                            if len(crit_points) == 3:
+                                if p(crit_points[2]) + 40 <= Cutimage.height:
+                                    maxY = p(crit_points[2]) + 40
+                                else:
+                                    maxY = Cutimage.height
+                            else:
+                                if p(crit_points[1]) + 40 <= Cutimage.height:
+                                    maxY = p(crit_points[1]) + 40
+                                else:
+                                    maxY = Cutimage.height
+                        elif minX == -1 and (Cutimage.height - p(x)) <= 5 and (Cutimage.height - p(x)) >= 0:
+                            if x - 50 >= 0:
+                                minX = x - 50
+                            else:
+                                minX = 0
+                            if len(crit_points) == 3:
+                                if p(crit_points[2]) - 40 >= 0:
+                                    minY = p(crit_points[2]) - 40
+                                else:
+                                    minY = 0
+                            else:
+                                if p(crit_points[1]) - 40 >= 0:
+                                    minY = p(crit_points[1]) - 40
+                                else:
+                                    minY = 0
+                            if len(boxArray) >= 14 and len(boxArray) <= 16:
+                                maxY = 0
+                                for box in boxArray:
+                                    x1, y1, x2 ,y2 = box
+                                    maxY = max(y2, maxY)
+                                maxY = min(Cutimage.height, maxY+40)
+                            else:
+                                maxY = Cutimage.height
+                        elif (p(x) <= 5 and p(x) >= 0) or ((Cutimage.height - p(x)) <= 5 and (Cutimage.height - p(x)) >= 0):
+                            if x + 50 <= Cutimage.width:
+                                maxX = x + 50
+                            else:
+                                maxX = Cutimage.width
+
+                    if minX < 0 or maxX <= 0:
+                        minX = 100000
+                        minY = 100000
+                        maxX = 0
+                        maxY = 0
+                        for box in boxArray:
+                            x1, y1, x2 ,y2 = box
+                            minX = min(x1, minX)
+                            minY = min(y1, minY)
+                            maxX = max(x2, maxX)
+                            maxY = max(y2, maxY)
+
+                        minX = max(0,minX-20)
+                        minY =  max(0,minY-20)
+                        maxX = min(Cutimage.width, maxX+20)
+                        maxY = min(Cutimage.height, maxY+20)
+                        
+                    if (maxY - minY) * 1.5 < (maxX - minX):
+                        if (maxY + (((maxX-minX)-(maxY-minY)*1.5)/1.5)/2) < Cutimage.height:
+                            maxY += (((maxX-minX)-(maxY-minY)*1.5)/1.5) / 2
+                            if (minY - (((maxX-minX)-(maxY-minY)*1.5)/1.5)/2) > 0:
+                                minY -= (((maxX-minX)-(maxY-minY)*1.5)/1.5)/2
+                            else:
+                                maxY -= ((((maxX-minX)-(maxY-minY)*1.5)/1.5)/2 - minY)
+                                minY = 0
+                        else:
+                            minY -= (((maxX-minX)-(maxY-minY)*1.5)/1.5) / 2
+                            minY += ((maxY + (((maxX-minX)-(maxY-minY)*1.5)/1.5)/2) - Cutimage.height)
+                            maxY = Cutimage.height
+                    elif (maxY - minY) * 1.5 > (maxX - minX):
+                        if (maxX + ((maxY-minY)*1.5-(maxX-minX))/2) < Cutimage.width:
+                            maxX += ((maxY-minY)*1.5-(maxX-minX)) / 2
+                            if (minX - ((maxY-minY)*1.5-(maxX-minX))/2) > 0:
+                                minX -= ((maxY-minY)*1.5-(maxX-minX)) / 2
+                            else:
+                                maxX -= (((maxY-minY)*1.5-(maxX-minX))/2 - minX)
+                                minX = 0
+                        else:
+                            minX -= ((maxY-minY)*1.5-(maxX-minX)) / 2
+                            minX += ((maxX + ((maxY-minY)*1.5-(maxX-minX))/2) - Cutimage.width)
+                            maxX = Cutimage.width
+                    
+
+                    # Crop image
+                    Cutimage = Cutimage.crop((minX,minY,maxX,maxY))
+
+                    # Save cropped image
+                    output_subfolder_path = os.path.join(output_folder_path, folder_name, '3_crop')
+                    os.makedirs(output_subfolder_path, exist_ok=True)
+
+                    output_image_path = os.path.join(output_subfolder_path, f"crop_{image_filename}")
+                    Cutimage.save(output_image_path)
 
 
 
@@ -341,7 +447,7 @@ for folder_name in os.listdir(result_folder_path):
                         image = image.transpose(Image.FLIP_LEFT_RIGHT)
 
                     # Create the output folder structure mirroring the input structure
-                    output_subfolder_path = os.path.join(output_folder_path, folder_name, 'mask')
+                    output_subfolder_path = os.path.join(output_folder_path, folder_name, '0_mask')
                     os.makedirs(output_subfolder_path, exist_ok=True)
 
                     # Save the processed image to the 'orientation' folder

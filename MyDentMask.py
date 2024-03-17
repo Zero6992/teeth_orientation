@@ -903,6 +903,7 @@ if __name__ == "__main__":
             boxes = output["boxes"]
             masks = output["masks"]
 
+
             #print( "img type = " ,type(img) )
             #print( "draw type = ",type(draw) )
             
